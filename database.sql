@@ -9,6 +9,7 @@
 -- -----------------------------------------------
 DROP TABLE IF EXISTS scores CASCADE;
 DROP TABLE IF EXISTS dismissals CASCADE;
+DROP TABLE IF EXISTS match_extras CASCADE;
 DROP TABLE IF EXISTS match_rosters CASCADE;
 DROP TABLE IF EXISTS matches CASCADE;
 DROP TABLE IF EXISTS players CASCADE;
@@ -44,6 +45,16 @@ CREATE TABLE match_rosters (
   team INTEGER NOT NULL CHECK (team IN (1, 2))
 );
 
+-- Extras per innings (wide runs, no-ball runs). Convention: wide = 1 run, no ball = 1 penalty + re-bowl; ball not counted for bowler.
+CREATE TABLE match_extras (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  match_id UUID REFERENCES matches(id) ON DELETE CASCADE,
+  innings INTEGER NOT NULL DEFAULT 1,
+  wide_runs INTEGER NOT NULL DEFAULT 0,
+  no_ball_runs INTEGER NOT NULL DEFAULT 0,
+  UNIQUE(match_id, innings)
+);
+
 -- Per-wicket dismissal details (how out, bowler, fielder)
 CREATE TABLE dismissals (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -76,6 +87,7 @@ CREATE TABLE scores (
 ALTER TABLE players ENABLE ROW LEVEL SECURITY;
 ALTER TABLE matches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE match_rosters ENABLE ROW LEVEL SECURITY;
+ALTER TABLE match_extras ENABLE ROW LEVEL SECURITY;
 ALTER TABLE dismissals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE scores ENABLE ROW LEVEL SECURITY;
 
@@ -83,4 +95,5 @@ CREATE POLICY "Allow all" ON players FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON matches FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON dismissals FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON match_rosters FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON match_extras FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON scores FOR ALL USING (true) WITH CHECK (true);
