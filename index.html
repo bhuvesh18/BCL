@@ -354,8 +354,6 @@
       <div class="card" id="newMatchCard">
         <div class="card-title new-match-toggle" id="newMatchCardHeader" onclick="toggleNewMatch()">Setup New Match <span id="newMatchToggleIcon">−</span></div>
         <div id="newMatchCardBody">
-            <div class="form-row"><label>Team 1 Name</label><input type="text" id="newMatchTeam1" placeholder="e.g. TITANS" /></div>
-            <div class="form-row"><label>Team 2 Name</label><input type="text" id="newMatchTeam2" placeholder="e.g. WARRIORS" /></div>
             <div class="form-row roster-row" style="margin-top: 1rem;">
               <label>Common Player <span style="font-weight:400;color:var(--text-muted);">(odd players – plays for both teams)</span></label>
               <div class="common-tags" id="commonPlayersTags" style="display:flex; flex-wrap:wrap; gap:5px; margin: 8px 0;"></div>
@@ -861,9 +859,7 @@
       var r1 = document.getElementById('rosterTeam1'), r2 = document.getElementById('rosterTeam2');
       if (r1) r1.innerHTML = newMatchRoster.team1.map(function(pid){ return tagHtml(pid, 1); }).join('');
       if (r2) r2.innerHTML = newMatchRoster.team2.map(function(pid){ return tagHtml(pid, 2); }).join('');
-      var t1 = document.getElementById('newMatchTeam1'), t2 = document.getElementById('newMatchTeam2');
-      var n1 = t1 && t1.value ? t1.value.trim() : 'Team 1';
-      var n2 = t2 && t2.value ? t2.value.trim() : 'Team 2';
+      var n1 = 'Team A', n2 = 'Team B';
       var sel = document.getElementById('newMatchTossWinner');
       if (sel) sel.innerHTML = '<option value="">-- Select --</option><option value="'+n1+'">'+n1+'</option><option value="'+n2+'">'+n2+'</option>';
     }
@@ -913,12 +909,9 @@
     function bindRosterAdds() {
       var el1 = document.getElementById('addToTeam1'), el2 = document.getElementById('addToTeam2');
       var commonEl = document.getElementById('addCommonPlayer');
-      var t1 = document.getElementById('newMatchTeam1'), t2 = document.getElementById('newMatchTeam2');
       if (el1) el1.onchange = function(){ var v = el1.value; if (v) { addToRoster(v, 1); renderNewMatchRoster(); } };
       if (el2) el2.onchange = function(){ var v = el2.value; if (v) { addToRoster(v, 2); renderNewMatchRoster(); } };
       if (commonEl) commonEl.onchange = function(){ var v = commonEl.value; if (v) { addCommonPlayer(v); renderNewMatchRoster(); } };
-      if (t1) t1.oninput = t1.onchange = function(){ renderNewMatchRoster(); };
-      if (t2) t2.oninput = t2.onchange = function(){ renderNewMatchRoster(); };
     }
 
     function renderLiveScoreForm() {
@@ -1538,10 +1531,7 @@
       if (getCurrentMatchId()) { alert('Finish the current match before creating a new one.'); return; }
       var date = new Date().toISOString().slice(0,10);
       var overs = parseInt(document.getElementById('newMatchOvers').value) || 5;
-      var t1 = document.getElementById('newMatchTeam1'), t2 = document.getElementById('newMatchTeam2');
-      var team1 = t1 && t1.value ? t1.value.trim() : null;
-      var team2 = t2 && t2.value ? t2.value.trim() : null;
-      if (!team1 || !team2) { alert('Enter both team names.'); return; }
+      var team1 = 'Team A', team2 = 'Team B';
       if (!newMatchRoster.team1.length || !newMatchRoster.team2.length) { alert('Assign at least one player to each team.'); return; }
       var commonNotInBoth = newMatchRoster.commonPlayers.filter(function(pid){
         var pidStr = String(pid);
@@ -1569,7 +1559,6 @@
       var rRes = await supabase.from('match_rosters').insert(rosterRows);
       if (rRes.error) { alert('Match created but roster failed: ' + rRes.error.message); }
       newMatchRoster.team1 = []; newMatchRoster.team2 = []; newMatchRoster.commonPlayers = [];
-      document.getElementById('newMatchTeam1').value = ''; document.getElementById('newMatchTeam2').value = '';
       await loadData();
       document.querySelectorAll('.tab').forEach(function(x){ x.classList.remove('active'); });
       document.querySelectorAll('.panel').forEach(function(x){ x.classList.remove('active'); });
