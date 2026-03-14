@@ -829,29 +829,29 @@
     }
 
     function renderNewMatchRoster() {
-      var availableForTeam1 = data.players.filter(function(p){ return newMatchRoster.team1.indexOf(p.id) === -1; });
-      var availableForTeam2 = data.players.filter(function(p){ return newMatchRoster.team2.indexOf(p.id) === -1; });
+      var availableForTeam1 = data.players.filter(function(p){ return !newMatchRoster.team1.some(function(t){ return String(t) === String(p.id); }); });
+      var availableForTeam2 = data.players.filter(function(p){ return !newMatchRoster.team2.some(function(t){ return String(t) === String(p.id); }); });
       var addOpts1 = '<option value="">+ Add player</option>' + availableForTeam1.map(function(p){ return '<option value="'+p.id+'">'+(p.icon||'')+' '+p.name+'</option>'; }).join('');
       var addOpts2 = '<option value="">+ Add player</option>' + availableForTeam2.map(function(p){ return '<option value="'+p.id+'">'+(p.icon||'')+' '+p.name+'</option>'; }).join('');
       var el1 = document.getElementById('addToTeam1'), el2 = document.getElementById('addToTeam2');
       if (el1) { el1.innerHTML = addOpts1; el1.value = ''; }
       if (el2) { el2.innerHTML = addOpts2; el2.value = ''; }
-      var commonAvailable = data.players.filter(function(p){ return newMatchRoster.commonPlayers.indexOf(p.id) === -1; });
+      var commonAvailable = data.players.filter(function(p){ return !newMatchRoster.commonPlayers.some(function(c){ return String(c) === String(p.id); }); });
       var commonOpts = '<option value="">+ Add common player</option>' + commonAvailable.map(function(p){ return '<option value="'+p.id+'">'+(p.icon||'')+' '+p.name+'</option>'; }).join('');
       var commonEl = document.getElementById('addCommonPlayer');
       if (commonEl) { commonEl.innerHTML = commonOpts; commonEl.value = ''; }
       var commonTagsEl = document.getElementById('commonPlayersTags');
       if (commonTagsEl) {
         commonTagsEl.innerHTML = newMatchRoster.commonPlayers.map(function(pid){
-          var p = data.players.find(function(x){ return x.id === pid; });
+          var p = data.players.find(function(x){ return String(x.id) === String(pid); });
           if (!p) return '';
           return '<span class="roster-tag common"><span class="common-badge">C</span> '+(p.icon||'')+' '+p.name+' <button type="button" onclick="removeCommonPlayer(\''+pid+'\')">&times;</button></span>';
         }).join('');
       }
       function tagHtml(pid, team) {
-        var p = data.players.find(function(x){ return x.id === pid; });
+        var p = data.players.find(function(x){ return String(x.id) === String(pid); });
         if (!p) return '';
-        var isCommon = newMatchRoster.commonPlayers.indexOf(pid) !== -1;
+        var isCommon = newMatchRoster.commonPlayers.some(function(c){ return String(c) === String(pid); });
         var cls = isCommon ? ' common' : '';
         var badge = isCommon ? '<span class="common-badge">C</span> ' : '';
         return '<span class="roster-tag'+cls+'" data-pid="'+pid+'" data-team="'+team+'">'+badge+(p.icon||'')+' '+p.name+' <button type="button" onclick="removeFromRoster(\''+pid+'\', '+team+')">&times;</button></span>';
@@ -868,27 +868,33 @@
 
     function addToRoster(pid, team) {
       if (!pid) return;
+      var pidStr = String(pid);
       var other = team === 1 ? newMatchRoster.team2 : newMatchRoster.team1;
-      var isCommon = newMatchRoster.commonPlayers.indexOf(pid) !== -1;
-      if (!isCommon && other.indexOf(pid) !== -1) return;
+      var isCommon = newMatchRoster.commonPlayers.some(function(c){ return String(c) === pidStr; });
+      if (!isCommon && other.some(function(t){ return String(t) === pidStr; })) return;
       var arr = team === 1 ? newMatchRoster.team1 : newMatchRoster.team2;
-      if (arr.indexOf(pid) !== -1) return;
-      arr.push(pid);
+      if (arr.some(function(t){ return String(t) === pidStr; })) return;
+      arr.push(pidStr);
       renderNewMatchRoster();
     }
 
     function addCommonPlayer(pid) {
-      if (!pid || newMatchRoster.commonPlayers.indexOf(pid) !== -1) return;
-      newMatchRoster.commonPlayers.push(pid);
+      if (!pid) return;
+      var pidStr = String(pid);
+      if (newMatchRoster.commonPlayers.some(function(c){ return String(c) === pidStr; })) return;
+      newMatchRoster.commonPlayers.push(pidStr);
+      if (newMatchRoster.team1.indexOf(pidStr) === -1 && !newMatchRoster.team1.some(function(t){ return String(t) === pidStr; })) newMatchRoster.team1.push(pidStr);
+      if (newMatchRoster.team2.indexOf(pidStr) === -1 && !newMatchRoster.team2.some(function(t){ return String(t) === pidStr; })) newMatchRoster.team2.push(pidStr);
       renderNewMatchRoster();
     }
 
     function removeCommonPlayer(pid) {
-      var i = newMatchRoster.commonPlayers.indexOf(pid);
+      var pidStr = String(pid);
+      var i = newMatchRoster.commonPlayers.findIndex(function(c){ return String(c) === pidStr; });
       if (i !== -1) {
         newMatchRoster.commonPlayers.splice(i, 1);
-        var t1 = newMatchRoster.team1.indexOf(pid);
-        var t2 = newMatchRoster.team2.indexOf(pid);
+        var t1 = newMatchRoster.team1.findIndex(function(t){ return String(t) === pidStr; });
+        var t2 = newMatchRoster.team2.findIndex(function(t){ return String(t) === pidStr; });
         if (t1 !== -1) newMatchRoster.team1.splice(t1, 1);
         if (t2 !== -1) newMatchRoster.team2.splice(t2, 1);
         renderNewMatchRoster();
@@ -896,8 +902,9 @@
     }
 
     function removeFromRoster(pid, team) {
+      var pidStr = String(pid);
       var arr = team === 1 ? newMatchRoster.team1 : newMatchRoster.team2;
-      var i = arr.indexOf(pid);
+      var i = arr.findIndex(function(t){ return String(t) === pidStr; });
       if (i !== -1) { arr.splice(i, 1); renderNewMatchRoster(); }
     }
 
@@ -1456,10 +1463,13 @@
       if (!team1 || !team2) { alert('Enter both team names.'); return; }
       if (!newMatchRoster.team1.length || !newMatchRoster.team2.length) { alert('Assign at least one player to each team.'); return; }
       var commonNotInBoth = newMatchRoster.commonPlayers.filter(function(pid){
-        return newMatchRoster.team1.indexOf(pid) === -1 || newMatchRoster.team2.indexOf(pid) === -1;
+        var pidStr = String(pid);
+        var in1 = newMatchRoster.team1.some(function(t){ return String(t) === pidStr; });
+        var in2 = newMatchRoster.team2.some(function(t){ return String(t) === pidStr; });
+        return !in1 || !in2;
       });
       if (commonNotInBoth.length) {
-        var p = data.players.find(function(x){ return x.id === commonNotInBoth[0]; });
+        var p = data.players.find(function(x){ return String(x.id) === String(commonNotInBoth[0]); });
         alert('Common player "' + (p ? p.name : '') + '" must be in both Squad A and Squad B.');
         return;
       }
