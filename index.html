@@ -412,7 +412,7 @@
 
             <div style="margin-top: 1.5rem; display: flex; flex-wrap: wrap; gap: 0.5rem;">
                 <button type="button" id="saveStatsBtn" onclick="saveStatsOnly()" style="background: var(--accent);">Save Stats</button>
-                <button type="button" id="completeInningsBtn" onclick="completeInnings()" style="background: var(--gold);">Complete Innings</button>
+                <button type="button" id="completeInningsBtn" onclick="completeInnings()" style="background: var(--gold); display:none;">Complete Innings</button>
                 <button type="button" id="startInnings2Btn" onclick="startInnings2()" style="background: var(--gold); display:none;">Start 2nd Innings</button>
             </div>
         </div>
@@ -1475,9 +1475,28 @@
       var matchId = liveSession.matchId || getCurrentMatchId();
       if (!matchId) { btn.style.display = 'none'; return; }
       var match = data.matches.find(function(m){ return m.id === matchId; });
+      var battingTeamNum = match ? getBattingAndBowlingTeams(match).batting : 1;
+      var battingPlayers = match ? getPlayersInTeam(matchId, battingTeamNum) : [];
+      var availableBatsmenCount = battingPlayers.filter(function(p){
+        return !liveSession.dismissedBatsmen.some(function(id){ return String(id) === String(p.id); });
+      }).length;
+      var totalBalls = 0; for (var k in liveSession.scores) totalBalls += liveSession.scores[k].ballsBowled || 0;
+      var totalRuns = 0; for (var k in liveSession.scores) totalRuns += liveSession.scores[k].runs || 0;
+      totalRuns += (liveSession.extras.wide || 0) + (liveSession.extras.noBall || 0);
+      var maxOvers = match ? (match.overs || 5) : 5;
+      var allOut = availableBatsmenCount === 0;
+      var oversComplete = totalBalls >= maxOvers * 6;
+      var targetChased = false;
+      if (liveSession.currentInnings === 2 && match) {
+        var s1 = data.scores.filter(function(s){ return s.matchId === matchId && (s.innings === 1 || !s.innings); });
+        var ext1 = (data.extras || []).find(function(e){ return e.matchId === matchId && (e.innings === 1 || !e.innings); });
+        var tot1 = 0; s1.forEach(function(s){ tot1 += s.runs || 0; }); tot1 += (ext1 ? (ext1.wideRuns || 0) + (ext1.noBallRuns || 0) : 0);
+        targetChased = totalRuns >= tot1 + 1;
+      }
+      var inningsComplete = allOut || oversComplete || targetChased;
       var innDone = getMatchInningsComplete(matchId);
       var showStart2 = match && innDone === 1 && !match.winner && liveSession.currentInnings === 1;
-      btn.style.display = showStart2 ? 'none' : 'inline-block';
+      btn.style.display = (inningsComplete && !showStart2) ? 'inline-block' : 'none';
     }
 
     function startInnings2() {
