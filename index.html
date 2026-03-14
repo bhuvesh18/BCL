@@ -568,7 +568,7 @@
           var icon = (p.photo && p.photo.indexOf('http') !== 0) ? p.photo : AVATAR_ICONS[0];
           return { id: p.id, name: p.name, icon: icon };
         });
-        data.matchRosters = (rostersRes && !rostersRes.error ? (rostersRes.data || []) : []).map(function(r){ return { matchId: r.match_id, playerId: r.player_id, team: r.team }; });
+        data.matchRosters = (rostersRes && !rostersRes.error ? (rostersRes.data || []) : []).map(function(r){ var t = r.team; var n = (t == 1 || t == 2) ? Number(t) : t; return { matchId: r.match_id, playerId: r.player_id, team: n }; });
         data.matches = (matchesRes.data || []).map(function(m, i) {
           return { id: m.id, date: m.date, overs: m.overs, notes: m.notes || '', team1: m.team1 || '', team2: m.team2 || '', matchNumber: m.match_number || (i + 1), tossWinner: m.toss_winner || '', tossDecision: m.toss_decision || '', winner: m.winner || null };
         });
@@ -757,7 +757,8 @@
     function getPlayersInTeam(matchId, teamNum) {
       var roster = getMatchRoster(matchId);
       var tn = Number(teamNum);
-      var pids = roster.filter(function(r){ return Number(r.team) === tn; }).map(function(r){ return r.playerId; });
+      if (tn !== 1 && tn !== 2) tn = 1;
+      var pids = roster.filter(function(r){ var rt = Number(r.team); return (rt === 1 || rt === 2) && rt === tn; }).map(function(r){ return r.playerId; });
       return data.players.filter(function(p){ return pids.some(function(pid){ return String(pid) === String(p.id); }); });
     }
 
@@ -933,13 +934,16 @@
       }
       var bSel = document.getElementById('liveBatsmanId'), wSel = document.getElementById('liveBowlerId');
       var match = data.matches.find(function(m){ return m.id === matchId; });
-      var inn = liveSession.currentInnings || 1;
+      var inn = Number(liveSession.currentInnings) || 1;
+      if (inn !== 1 && inn !== 2) inn = 1;
       var teams = match ? getBattingAndBowlingTeams(match, inn) : { batting: 1, bowling: 2 };
-      var battingPlayers = matchId && match ? getPlayersInTeam(matchId, teams.batting) : [];
+      var battingTeamNum = Number(teams.batting) === 2 ? 2 : 1;
+      var bowlingTeamNum = Number(teams.bowling) === 2 ? 2 : 1;
+      var battingPlayers = matchId && match ? getPlayersInTeam(matchId, battingTeamNum) : [];
       var availableBatsmen = battingPlayers.filter(function(p){
         return !liveSession.dismissedBatsmen.some(function(id){ return String(id) === String(p.id); });
       });
-      var bowlingPlayers = matchId && match ? getPlayersInTeam(matchId, teams.bowling) : [];
+      var bowlingPlayers = matchId && match ? getPlayersInTeam(matchId, bowlingTeamNum) : [];
       var curBatId = String(liveSession.batsman || '');
       var selectableBowlers = bowlingPlayers.filter(function(p){ return String(p.id) !== curBatId; });
       var batOpts = availableBatsmen.length ? availableBatsmen.map(function(p){ return '<option value="'+p.id+'">'+(p.icon||'')+' '+p.name+'</option>'; }).join('') : '<option value="">All out or select batsman</option>';
@@ -1063,7 +1067,8 @@
         var match = data.matches.find(function(m){ return m.id === liveSession.matchId; });
         var inn = liveSession.currentInnings || 1;
         var teams = match ? getBattingAndBowlingTeams(match, inn) : { batting: 1, bowling: 2 };
-        var battingPlayers = match ? getPlayersInTeam(liveSession.matchId, teams.batting) : [];
+        var batNum = Number(teams.batting) === 2 ? 2 : 1;
+        var battingPlayers = match ? getPlayersInTeam(liveSession.matchId, batNum) : [];
         var availableBatsmen = battingPlayers.filter(function(p){
           var pid = String(p.id || '');
           return !liveSession.dismissedBatsmen.some(function(id){ return String(id) === pid; });
@@ -1337,7 +1342,7 @@
           var s = liveSession.scores[pid];
           var pl = data.players.find(function(x){ return x.id === pid; });
           if (!pl) continue;
-          var inBattingTeam = match && getPlayersInTeam(liveSession.matchId, battingTeamNum).some(function(p){ return p.id === pid; });
+          var inBattingTeam = match && getPlayersInTeam(liveSession.matchId, battingTeamNum).some(function(p){ return String(p.id) === String(pid); });
           if (!inBattingTeam) continue;
           if (s.runs > 0 || s.balls > 0) {
             var howOut = formatHowOut(pid);
