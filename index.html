@@ -550,8 +550,9 @@
       }
     });
 
-    async function loadData() {
+    async function loadData(opts) {
       if (!supabase) return;
+      var skipInningsAdvance = opts && opts.skipInningsAdvance;
       try {
         var dismissalsPromise = supabase.from('dismissals').select('*');
         var extrasPromise = supabase.from('match_extras').select('*');
@@ -589,7 +590,7 @@
         renderMatches();
         renderPlayers();
         var matchId = data.matches.filter(function(m){ return !isMatchComplete(m.id); })[0] ? data.matches.filter(function(m){ return !isMatchComplete(m.id); })[0].id : null;
-        if (matchId) {
+        if (matchId && !skipInningsAdvance) {
           var innDone = getMatchInningsComplete(matchId);
           liveSession.currentInnings = Number(innDone) >= 1 ? 2 : 1;
           if (innDone >= 1 && (Object.keys(liveSession.scores || {}).length === 0)) {
@@ -1397,7 +1398,7 @@
       if (!hasData && liveSession.dismissals.length === 0 && ((liveSession.extras.wide || 0) + (liveSession.extras.noBall || 0)) === 0) { alert('No scores to save'); return; }
       try {
         await persistLiveScoresToDb(matchId, inn);
-        await loadData();
+        await loadData({ skipInningsAdvance: true });
         alert('Stats saved.');
       } catch (e) { alert(e.message || 'Save failed'); }
     }
