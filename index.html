@@ -944,14 +944,25 @@
         return !liveSession.dismissedBatsmen.some(function(id){ return String(id) === String(p.id); });
       });
       var bowlingPlayers = matchId && match ? getPlayersInTeam(matchId, teams.bowling) : [];
+      var curBatId = String(liveSession.batsman || '');
+      var selectableBowlers = bowlingPlayers.filter(function(p){ return String(p.id) !== curBatId; });
       var batOpts = availableBatsmen.length ? availableBatsmen.map(function(p){ return '<option value="'+p.id+'">'+(p.icon||'')+' '+p.name+'</option>'; }).join('') : '<option value="">All out or select batsman</option>';
-      var bowlOpts = bowlingPlayers.length ? bowlingPlayers.map(function(p){ return '<option value="'+p.id+'">'+(p.icon||'')+' '+p.name+'</option>'; }).join('') : '<option value="">No bowling team</option>';
+      var bowlOpts = selectableBowlers.length ? selectableBowlers.map(function(p){ return '<option value="'+p.id+'">'+(p.icon||'')+' '+p.name+'</option>'; }).join('') : '<option value="">No bowling team</option>';
       bSel.innerHTML = batOpts;
       wSel.innerHTML = bowlOpts;
       var curBat = String(liveSession.batsman || '');
       if (availableBatsmen.some(function(p){ return String(p.id) === curBat; })) bSel.value = curBat;
       else if (availableBatsmen.length) bSel.value = String(availableBatsmen[0].id || '');
-      wSel.value = liveSession.bowler ? String(liveSession.bowler) : (bowlingPlayers.length ? String(bowlingPlayers[0].id) : '');
+      var newBat = bSel.value ? String(bSel.value) : '';
+      var curBowl = liveSession.bowler ? String(liveSession.bowler) : '';
+      if (newBat && curBowl === newBat) {
+        var otherBowler = selectableBowlers[0] || bowlingPlayers.find(function(p){ return String(p.id) !== newBat; });
+        wSel.value = otherBowler ? String(otherBowler.id) : '';
+        liveSession.bowler = wSel.value;
+      } else {
+        var validBowl = selectableBowlers.some(function(p){ return String(p.id) === curBowl; });
+        wSel.value = validBowl ? curBowl : (selectableBowlers.length ? String(selectableBowlers[0].id) : '');
+      }
       updateLiveDisplay();
     }
 
@@ -1220,7 +1231,11 @@
 
       var match = data.matches.find(function(m){ return m.id === liveSession.matchId; });
       var battingTeamNum = match ? getBattingAndBowlingTeams(match).batting : 1;
-      var battingTeamSize = match ? getPlayersInTeam(liveSession.matchId, battingTeamNum).length : 6;
+      var battingPlayers = match ? getPlayersInTeam(liveSession.matchId, battingTeamNum) : [];
+      var battingTeamSize = battingPlayers.length;
+      var availableBatsmenCount = battingPlayers.filter(function(p){
+        return !liveSession.dismissedBatsmen.some(function(id){ return String(id) === String(p.id); });
+      }).length;
       var maxWickets = Math.max(1, battingTeamSize - 1);
       var wicketsFallen = liveSession.dismissedBatsmen.length;
       var totalBalls = 0; for (var k in liveSession.scores) totalBalls += liveSession.scores[k].ballsBowled || 0;
@@ -1235,8 +1250,8 @@
         var target = tot1 + 1;
         targetChased = totalRuns >= target;
       }
-      var inningsComplete = wicketsFallen >= maxWickets || totalBalls >= maxOvers * 6 || targetChased;
-      var allOut = wicketsFallen >= maxWickets;
+      var allOut = availableBatsmenCount === 0;
+      var inningsComplete = allOut || totalBalls >= maxOvers * 6 || targetChased;
       var oversComplete = totalBalls >= maxOvers * 6;
       var overCompleteBanner = document.getElementById('overCompleteBanner');
       var inningsBanner = document.getElementById('inningsCompleteBanner');
@@ -1343,10 +1358,10 @@
     }
 
     function bindLiveSelects() {
-      ['liveBatsmanId','liveBowlerId'].forEach(function(id){
-        var el = document.getElementById(id);
-        if (el) { el.onchange = updateLiveDisplay; }
-      });
+      var bEl = document.getElementById('liveBatsmanId');
+      if (bEl) bEl.onchange = function(){ liveSession.batsman = bEl.value ? String(bEl.value) : ''; renderLiveScoreForm(); };
+      var wEl = document.getElementById('liveBowlerId');
+      if (wEl) wEl.onchange = function(){ liveSession.bowler = wEl.value ? String(wEl.value) : ''; updateLiveDisplay(); };
     }
 
     async function saveLiveScores() {
