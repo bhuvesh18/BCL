@@ -1162,6 +1162,18 @@
     function updateLiveDisplay() {
       var currentMatch = getCurrentMatchId();
       liveSession.matchId = currentMatch || liveSession.matchId;
+      if (liveSession.matchId && isMatchComplete(liveSession.matchId)) {
+        liveSession.matchId = null;
+        liveSession.batsman = null;
+        liveSession.bowler = null;
+        liveSession.currentInnings = 1;
+        liveSession.scores = {};
+        liveSession.ballLog = [];
+        liveSession.dismissedBatsmen = [];
+        liveSession.dismissals = [];
+        liveSession.extras = { wide: 0, noBall: 0 };
+        liveSession.freeHit = false;
+      }
       var inn1Card = document.getElementById('innings1SummaryCard');
       if (inn1Card) {
         var match = data.matches.find(function(m){ return m.id === liveSession.matchId; });
@@ -1217,6 +1229,12 @@
         var lbl = document.getElementById('liveBatsmanLabel'); if (lbl) lbl.textContent = 'Select match, batsman and bowler';
         var scoreD = document.getElementById('liveScoreDisplay'); if (scoreD) scoreD.textContent = '0/0';
         var ovD = document.getElementById('liveOverDisplay'); if (ovD) ovD.textContent = '';
+        var totalEl = document.getElementById('scorecardTotal'); if (totalEl) totalEl.textContent = '';
+        var batEl = document.getElementById('scorecardBatting'); if (batEl) batEl.innerHTML = '';
+        var bowlEl = document.getElementById('scorecardBowling'); if (bowlEl) bowlEl.innerHTML = '';
+        var inningsBanner = document.getElementById('inningsCompleteBanner'); if (inningsBanner) { inningsBanner.style.display = 'none'; inningsBanner.textContent = ''; }
+        var innNum = document.getElementById('currentInningsNum'); if (innNum) innNum.textContent = '1';
+        var logEl = document.getElementById('ballLogDisplay'); if (logEl) logEl.innerHTML = '';
         return;
       }
       if (Object.keys(liveSession.scores).length === 0) {
@@ -1502,6 +1520,16 @@
           if (btn) btn.style.display = 'none';
           expandNewMatch();
           renderMatchResult();
+          liveSession.matchId = null;
+          liveSession.batsman = null;
+          liveSession.bowler = null;
+          liveSession.currentInnings = 1;
+          liveSession.scores = {};
+          liveSession.ballLog = [];
+          liveSession.dismissedBatsmen = [];
+          liveSession.dismissals = [];
+          liveSession.extras = { wide: 0, noBall: 0 };
+          liveSession.freeHit = false;
           updateLiveDisplay();
           alert('Match complete!');
         }
