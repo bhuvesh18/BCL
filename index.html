@@ -1066,7 +1066,8 @@
         return;
       }
       var isWicket = runs === 'W';
-      var r = isWicket ? 0 : parseInt(runs, 10);
+      var r = isWicket ? 0 : (Number(runs) || 0);
+      r = Math.min(6, Math.max(0, Math.floor(r)));
       if (liveSession.freeHit && isWicket) {
         var dType = (dismissalInfo && dismissalInfo.type) ? dismissalInfo.type : 'bowled';
         if (dType !== 'run_out') {
@@ -1404,6 +1405,10 @@
     }
 
     async function persistLiveScoresToDb(matchId, inn) {
+      if (!matchId || String(matchId) === 'null' || String(matchId) === '') {
+        console.error('Critical Error: Attempted to save with null or invalid matchId');
+        return;
+      }
       var scoreRows = [];
       for (var pid in liveSession.scores) {
         var s = liveSession.scores[pid];
@@ -1428,8 +1433,11 @@
     }
 
     async function saveStatsOnly() {
+      var btn = document.getElementById('saveStatsBtn');
+      if (btn && (btn.getAttribute('data-loading') === 'true' || btn.disabled)) return;
+      if (btn) { btn.setAttribute('data-loading', 'true'); btn.disabled = true; btn.style.opacity = '0.5'; btn.textContent = 'Saving...'; }
       var matchId = getCurrentMatchId() || liveSession.matchId;
-      if (!matchId) { alert('No match in progress.'); return; }
+      if (!matchId) { alert('No match in progress.'); if (btn) { btn.removeAttribute('data-loading'); btn.disabled = false; btn.style.opacity = '1'; btn.textContent = 'Save Stats'; } return; }
       liveSession.matchId = matchId;
       var inn = liveSession.currentInnings || 1;
       var hasData = false;
@@ -1437,17 +1445,21 @@
         var s = liveSession.scores[pid];
         if (s.runs > 0 || s.balls > 0 || s.wickets > 0 || s.ballsBowled > 0 || (s.catches || 0) > 0) { hasData = true; break; }
       }
-      if (!hasData && liveSession.dismissals.length === 0 && ((liveSession.extras.wide || 0) + (liveSession.extras.noBall || 0)) === 0) { alert('No scores to save'); return; }
+      if (!hasData && liveSession.dismissals.length === 0 && ((liveSession.extras.wide || 0) + (liveSession.extras.noBall || 0)) === 0) { alert('No scores to save'); if (btn) { btn.removeAttribute('data-loading'); btn.disabled = false; btn.style.opacity = '1'; btn.textContent = 'Save Stats'; } return; }
       try {
         await persistLiveScoresToDb(matchId, inn);
         await loadData({ skipInningsAdvance: true });
         alert('Stats saved.');
       } catch (e) { alert(e.message || 'Save failed'); }
+      finally { if (btn) { btn.removeAttribute('data-loading'); btn.disabled = false; btn.style.opacity = '1'; btn.textContent = 'Save Stats'; } }
     }
 
     async function completeInnings() {
+      var btn = document.getElementById('completeInningsBtn');
+      if (btn && (btn.getAttribute('data-loading') === 'true' || btn.disabled)) return;
+      if (btn) { btn.setAttribute('data-loading', 'true'); btn.disabled = true; btn.style.opacity = '0.5'; btn.textContent = 'Saving...'; }
       var matchId = getCurrentMatchId() || liveSession.matchId;
-      if (!matchId) { alert('No match in progress.'); return; }
+      if (!matchId) { alert('No match in progress.'); if (btn) { btn.removeAttribute('data-loading'); btn.disabled = false; btn.style.opacity = '1'; btn.textContent = 'Complete Innings'; } return; }
       liveSession.matchId = matchId;
       var inn = liveSession.currentInnings || 1;
       var hasData = false;
@@ -1455,7 +1467,7 @@
         var s = liveSession.scores[pid];
         if (s.runs > 0 || s.balls > 0 || s.wickets > 0 || s.ballsBowled > 0 || (s.catches || 0) > 0) { hasData = true; break; }
       }
-      if (!hasData && liveSession.dismissals.length === 0 && ((liveSession.extras.wide || 0) + (liveSession.extras.noBall || 0)) === 0) { alert('No scores to save'); return; }
+      if (!hasData && liveSession.dismissals.length === 0 && ((liveSession.extras.wide || 0) + (liveSession.extras.noBall || 0)) === 0) { alert('No scores to save'); if (btn) { btn.removeAttribute('data-loading'); btn.disabled = false; btn.style.opacity = '1'; btn.textContent = 'Complete Innings'; } return; }
       try {
         await persistLiveScoresToDb(matchId, inn);
         liveSession.scores = {}; liveSession.ballLog = []; liveSession.dismissedBatsmen = []; liveSession.dismissals = [];
@@ -1467,7 +1479,7 @@
           alert('Innings 1 complete! Innings 2 started – select batsman and bowler to continue.');
         } else {
           var match = data.matches.find(function(m){ return m.id === matchId; });
-          if (match && !match.winner) {
+          if (match && (match.winner === undefined || match.winner === null)) {
             var s1 = data.scores.filter(function(s){ return s.matchId === matchId && (s.innings === 1 || !s.innings); });
             var s2 = data.scores.filter(function(s){ return s.matchId === matchId && s.innings === 2; });
             var e1 = (data.extras || []).find(function(e){ return e.matchId === matchId && (e.innings === 1 || !e.innings); });
@@ -1485,8 +1497,9 @@
               await loadData();
             }
           }
-          document.getElementById('startInnings2Btn').style.display = 'none';
-          document.getElementById('completeInningsBtn').style.display = 'none';
+          var start2El = document.getElementById('startInnings2Btn');
+          if (start2El) start2El.style.display = 'none';
+          if (btn) btn.style.display = 'none';
           expandNewMatch();
           renderMatchResult();
           updateLiveDisplay();
@@ -1495,6 +1508,7 @@
         updateCompleteInningsBtn();
         initLiveSession();
       } catch (e) { alert(e.message || 'Save failed'); }
+      finally { if (btn) { btn.removeAttribute('data-loading'); btn.disabled = false; btn.style.opacity = '1'; btn.textContent = 'Complete Innings'; } }
     }
 
     function updateStartInnings2Btn() {
@@ -1597,6 +1611,7 @@
       var res = await supabase.from('matches').insert([{ date: date, overs: overs, team1: team1, team2: team2, match_number: matchNum, toss_winner: tossW, toss_decision: tossD }]).select();
       if (res.error) { alert(res.error.message); return; }
       var matchId = res.data[0].id;
+      liveSession = { matchId: matchId, batsman: null, bowler: null, scores: {}, ballLog: [], dismissedBatsmen: [], dismissals: [], currentInnings: 1, extras: { wide: 0, noBall: 0 }, freeHit: false };
       var rosterRows = [];
       newMatchRoster.team1.forEach(function(pid){ rosterRows.push({ match_id: matchId, player_id: pid, team: 1 }); });
       newMatchRoster.team2.forEach(function(pid){ rosterRows.push({ match_id: matchId, player_id: pid, team: 2 }); });
@@ -1609,8 +1624,6 @@
       document.querySelector('.tab[data-panel="live"]').classList.add('active');
       document.getElementById('live').classList.add('active');
       renderNewMatchRoster(); renderLiveScoreForm(); bindLiveSelects(); bindRosterAdds();
-      liveSession.matchId = matchId;
-      liveSession.currentInnings = 1;
       renderLiveScoreForm(); updateLiveDisplay(); updateNewMatchVisibility(); updateStartInnings2Btn(); updateCompleteInningsBtn();
       expandScorecard();
       collapseNewMatch();
